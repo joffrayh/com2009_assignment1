@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="com2009_assignment1" type="publisher.py" name="pub_node" output="screen"></node>
+  <node pkg="com2009_assignment1" type="subscriber.py" name="sub_node" output="screen"></node>
+</launch>
