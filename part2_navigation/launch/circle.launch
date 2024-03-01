@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="part2_navigation" type="odom_subscriber.py" name="move_circle" output="screen"></node>
+</launch>
