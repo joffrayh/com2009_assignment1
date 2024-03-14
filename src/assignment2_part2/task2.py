@@ -1,38 +1,42 @@
 #! /usr/bin/env python3
+# search_server.py
 
 # Import the core Python modules for ROS and to implement ROS Actions:
 import rospy
 import actionlib
 
 # Import all the necessary ROS message types:
-from msg import SearchAction, SearchFeedback, SearchResult, SearchGoal
+from tuos_msgs.msg import SearchAction, SearchFeedback, SearchResult, SearchGoal
 
 # Import the tb3 modules from tb3.py
 from my_tb3 import Tb3Move, Tb3Odometry, Tb3LaserScan
 
 # Import some other useful Python Modules
 from math import sqrt, pow
+import numpy as np
 
-class Task2ActionServer():
+class SearchActionServer():
     feedback = SearchFeedback() 
     result = SearchResult()
 
     def __init__(self):
-        self.server_name = "task2_action_server"
-        rospy.init_node(self.server_name)
+        rospy.init_node("search_action_server")
 
-        ## TODO: create a "simple action server" with a callback function, and start it...
-        self.actionserver = actionlib.SimpleActionServer(self.server_name, 
-            SearchAction, self.action_server_launcher, auto_start=False)
+        # Create a "simple action server" with a callback function, 
+        # and start it [DONE]
+        self.actionserver = actionlib.SimpleActionServer(
+            "/toms_search", 
+            SearchAction,
+            self.action_server_launcher,
+            auto_start=False
+        )
         self.actionserver.start()
 
-
-        # pull in some useful publisher/subscriber functions from the tb3.py module:
+        # pull in some useful publisher/subscriber functions from
+        # the tb3.py module:
         self.vel_controller = Tb3Move()
         self.tb3_odom = Tb3Odometry()
         self.tb3_lidar = Tb3LaserScan()
-
-        self.wall_max_distance = 0.5
 
         rospy.loginfo("The 'Search Action Server' is active...")
 
@@ -40,120 +44,134 @@ class Task2ActionServer():
     def action_server_launcher(self, goal: SearchGoal):
         rate = rospy.Rate(10)
 
-        ## TODO: Implement some checks on the "goal" input parameter(s)
+        rospy.sleep(2)
+
+        ## Implement some checks on the "goal" input parameter(s) [DONE]
         success = True
-        if goal.fwd_velocity > 0.26 or goal.fwd_velocity <=0:
-            print('Invalid velocity! Select a velocity between 0 and 0.26 m/s.')
+        vel = goal.fwd_velocity # m/s
+        dist = goal.approach_distance # m
+        if vel > 0.26 or vel < 0:
+            print("Invalid velocity!")
             success = False
 
-        if goal.approach_distance <=0 or goal.approach_distance > 3:
-            print('Invalid approach distance! Select a distance between 0 and 3.')
+        if dist < 0.2:
             success = False
+            print("Invalid distance!")
 
         if not success:
-            ## TODO: abort the action server if an invalid goal has been requested...
-            self.result.total_distance_travelled = 0
-            self.result.closest_object_distance = 0
-            self.result.closest_object_angle = 0
+            ## Abort the action server if an invalid goal
+            # has been requested [DONE]
+            self.result.total_distance_travelled = -1.0
+            self.result.closest_object_angle = -1.0
+            self.result.closest_object_distance = -1.0
             self.actionserver.set_aborted(self.result)
             return
 
-        ## TODO: Print a message to indicate that the requested goal was valid
-        print(f"The requested goal was valid,")
-        print(f"Travelling at a speed of {goal.fwd_velocity} m/s")
-        print(f"With a distance from the walls of {goal.approach_distance} m ...")
+        ## Print a message to indicate that the requested
+        # goal is valid [DONE]
+        print(f"Search goal received: fwd_vel = {vel:.2f} m/s, approach_distance = {dist:.2f} m.")
 
         # Get the robot's current odometry from the Tb3Odometry() class:
         self.posx0 = self.tb3_odom.posx
         self.posy0 = self.tb3_odom.posy
+        self.yaw0 = self.tb3_odom.yaw
         # Get information about objects up ahead from the Tb3LaserScan() class:
-        self.closest_object = self.tb3_lidar.min_distance 
-        #closest object referes to the object at in the front 40 degrees 
+        self.closest_object = self.tb3_lidar.min_distance
         self.closest_object_location = self.tb3_lidar.closest_object_position
 
-        self.left_wall_closest = self.tb3_lidar.left_wall
-        self.back_left = self.tb3_lidar.back_left_wall
-        self.front_left = self.tb3_lidar.front_left_wall
+        ## Set the robot's forward velocity
+        # (as specified in the "goal") [DONE]
+        self.vel_controller.set_move_cmd(linear=vel, angular=0.0)
 
-        ## TODO: set the robot's forward velocity (as specified in the "goal")...
-        self.vel_controller.set_move_cmd(goal.fwd_velocity, 0)
-
-        ## TODO: establish a conditional statement so that the
+        ## Establish a conditional statement so that the  
         ## while loop continues as long as the distance to the closest object
         ## ahead of the robot is always greater than the "approach distance"
-        ## (as specified in the "goal")...
-        while self.closest_object > goal.approach_distance:
+        ## (as specified in the "goal") [DONE]
+        self.i = 1
+        while True:
             # update LaserScan data:
             self.closest_object = self.tb3_lidar.min_distance
             self.closest_object_location = self.tb3_lidar.closest_object_position
 
-            self.left_wall_closest = self.tb3_lidar.left_wall
-            self.back_left = self.tb3_lidar.back_left_wall
-            self.front_left = self.tb3_lidar.front_left_wall
+            self.right_closest_object = self.tb3_lidar.right_min_distace
+            self.left_closest_object = self.tb3_lidar.left_min_distace
 
-            self.vel_controller.set_move_cmd(goal.fwd_velocity, 0)
-
-            ## TODO: publish a velocity command to make the robot start moving 
-            self.vel_controller.publish()
-
-            # determine how far the robot has travelled so far:
-            self.distance = sqrt(pow(self.posx0 - self.tb3_odom.posx, 2) + pow(self.posy0 - self.tb3_odom.posy, 2))
-
-            if abs(self.back_left - self.front_left) > 0.01:
-                print('back - front')
-                if self.back_left > self.front_left:
-                    self.vel_controller.set_move_cmd(goal.fwd_velocity, -0.2)            
-                else:
-                    self.vel_controller.set_move_cmd(goal.fwd_velocity, 0.2)            
-                self.vel_controller.publish()
-
-            if self.left_wall_closest < 0.2:
-                print('too close')
-                self.vel_controller.set_move_cmd(goal.fwd_velocity, -0.2)
-            elif self.left_wall_closest >0.5:
-                self.vel_controller.set_move_cmd(goal.fwd_velocity, 0.2)
+            ## Publish a velocity command to make the robot
+            ## start moving [DONE]
             self.vel_controller.publish()
 
             # check if there has been a request to cancel the action mid-way through:
             if self.actionserver.is_preempt_requested():
-                ## TODO: take appropriate action if the action is cancelled (pre-empted)...
-                rospy.loginfo("Cancelling the serach server.")
-
-                self.result.total_distance_travelled = self.distance
-                self.result.closest_object_distance = self.closest_object
-                self.result.closest_object_angle = self.closest_object_location               
+                ## Take appropriate action if the action is
+                ## cancelled (pre-empted) [DONE]
+                print("Pre-empt requested!")
                 self.actionserver.set_preempted(self.result)
-                # stop the robot:
                 self.vel_controller.stop()
                 success = False
                 # exit the loop:
                 break
 
             # determine how far the robot has travelled so far:
-            self.distance = sqrt(pow(self.posx0 - self.tb3_odom.posx, 2) + pow(self.posy0 - self.tb3_odom.posy, 2))
+            self.distance = sqrt(
+                pow(self.posx0 - self.tb3_odom.posx, 2) + pow(self.posy0 - self.tb3_odom.posy, 2)
+            )
 
-            ## TODO: update all feedback message values and publish a feedback message:
-            self.feedback.current_distance_travelled =  self.distance
+            if self.right_closest_object < 0.5:
+                rospy.loginfo("Obstacle detected on right side! Rotating left to avoid.")
+                self.vel_controller.set_move_cmd(0.0, 1)
+            elif self.left_closest_object < 0.5:
+                rospy.loginfo("Obstacle detected on left side! Rotating right to avoid.")
+                self.vel_controller.set_move_cmd(0.0, -1)
+            else:
+                self.vel_controller.set_move_cmd(goal.fwd_velocity, 0.0)
+
+            self.vel_controller.publish()
+
+
+            print('this is i = ', self.i)
+
+            if self.i== 350: #should be 300
+                print('###############################################################################')
+                print('###############################################################################')
+                print('facing the center')
+                self.vel_controller.set_move_cmd(0.0, 0)
+                self.vel_controller.publish()
+                rospy.sleep(2)
+                dx = self.posx0 - self.tb3_odom.posx
+                dy = self.posy0 - self.tb3_odom.posy
+                angle_to_start = np.arctan2(dy, dx)
+                relative_angle = angle_to_start - self.tb3_odom.yaw
+                print('relative angle = ', relative_angle)
+
+                self.vel_controller.set_move_cmd(0.0, 1)
+                self.vel_controller.publish()
+                rospy.sleep(abs(relative_angle))
+                self.vel_controller.set_move_cmd(0.0, 0)
+                self.vel_controller.publish()
+                
+
+            ## Update all feedback message values 
+            ## and publish a feedback message [DONE]
+            self.feedback.current_distance_travelled = self.distance
             self.actionserver.publish_feedback(self.feedback)
 
-
-
-            ## TODO: update all result parameters:
+            ## Update all result parameters [DONE]
             self.result.total_distance_travelled = self.distance
+            self.result.closest_object_angle = self.closest_object_location
             self.result.closest_object_distance = self.closest_object
-            self.result.closest_object_angle = self.closest_object_location 
 
             rate.sleep()
+            self.i += 1 
 
         if success:
             rospy.loginfo("approach completed successfully.")
-            ## TODO: Set the action server to "succeeded" and stop the robot...
-            self.actionserver.set_succeeded(self.result)
+            ## Set the action server to "succeeded" and stop the robot [DONE]
             self.vel_controller.stop()
+            self.actionserver.set_succeeded(self.result)
 
     def main(self):
         rospy.spin()
 
 if __name__ == '__main__':
-    node = Task2ActionServer()
+    node = SearchActionServer()
     node.main()
