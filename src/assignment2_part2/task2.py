@@ -155,36 +155,36 @@ class SearchActionServer():
             #     self.vel_controller.set_move_cmd(0.0, -1)
             elif self.left_arc_min < 0.3:
                 print('turning right from small arc')
-                self.vel_controller.set_move_cmd(0.0, -0.5)
+                self.vel_controller.set_move_cmd(0.0, -0.2)
             elif self.right_arc_min < 0.3:
                 print('turning left from small arc')
-                self.vel_controller.set_move_cmd(0, 0.5)
+                self.vel_controller.set_move_cmd(0, 0.2)
             else:
                 self.vel_controller.set_move_cmd(goal.fwd_velocity, 0.0)
 
             self.vel_controller.publish()
 
 
-            print('this is i = ', self.i)
+            # print('this is i = ', self.i)
 
-            if self.i== 350: #should be 300
-                print('###############################################################################')
-                print('###############################################################################')
-                print('facing the center')
-                self.vel_controller.set_move_cmd(0.0, 0)
-                self.vel_controller.publish()
-                rospy.sleep(2)
-                dx = self.posx0 - self.tb3_odom.posx
-                dy = self.posy0 - self.tb3_odom.posy
-                angle_to_start = np.arctan2(dy, dx)
-                relative_angle = angle_to_start - self.tb3_odom.yaw
-                print('relative angle = ', relative_angle)
+            # if self.i== 350: #should be 300
+            #     print('###############################################################################')
+            #     print('###############################################################################')
+            #     print('facing the center')
+            #     self.vel_controller.set_move_cmd(0.0, 0)
+            #     self.vel_controller.publish()
+            #     rospy.sleep(2)
+            #     dx = self.posx0 - self.tb3_odom.posx
+            #     dy = self.posy0 - self.tb3_odom.posy
+            #     angle_to_start = np.arctan2(dy, dx)
+            #     relative_angle = angle_to_start - self.tb3_odom.yaw
+            #     print('relative angle = ', relative_angle)
 
-                self.vel_controller.set_move_cmd(0.0, 1)
-                self.vel_controller.publish()
-                rospy.sleep(abs(relative_angle))
-                self.vel_controller.set_move_cmd(0.0, 0)
-                self.vel_controller.publish()
+            #     self.vel_controller.set_move_cmd(0.0, 1)
+            #     self.vel_controller.publish()
+            #     rospy.sleep(abs(relative_angle))
+            #     self.vel_controller.set_move_cmd(0.0, 0)
+            #     self.vel_controller.publish()
                 
 
             ## Update all feedback message values 

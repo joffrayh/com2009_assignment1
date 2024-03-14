@@ -53,8 +53,8 @@ class Tb3LaserScan(object):
         front_right_arc = scan_data.ranges[-20:]
         front_arc = np.array(front_left_arc[::-1] + front_right_arc[::-1])
 
-        left_arc = scan_data.ranges[21:90]
-        right_arc = scan_data.ranges[270:340]
+        left_arc = scan_data.ranges[21:70]
+        right_arc = scan_data.ranges[290:340]
         
         self.left_wall = np.array(scan_data.ranges[85:95]).min()
 
