@@ -76,8 +76,11 @@ class SearchActionServer():
         self.posy0 = self.tb3_odom.posy
         self.yaw0 = self.tb3_odom.yaw
         # Get information about objects up ahead from the Tb3LaserScan() class:
-        self.closest_object = self.tb3_lidar.min_distance
+        self.closest_object = self.tb3_lidar.front_min_distance
         self.closest_object_location = self.tb3_lidar.closest_object_position
+
+        self.left_arc_min = self.tb3_lidar.left_arc_min
+        self.right_arc_min = self.tb3_lidar.right_arc_min
 
         ## Set the robot's forward velocity
         # (as specified in the "goal") [DONE]
@@ -90,11 +93,15 @@ class SearchActionServer():
         self.i = 1
         while True:
             # update LaserScan data:
-            self.closest_object = self.tb3_lidar.min_distance
+            self.closest_object = self.tb3_lidar.front_min_distance
             self.closest_object_location = self.tb3_lidar.closest_object_position
 
-            self.right_closest_object = self.tb3_lidar.right_min_distace
-            self.left_closest_object = self.tb3_lidar.left_min_distace
+            self.left_arc_min = self.tb3_lidar.left_arc_min
+            self.right_arc_min = self.tb3_lidar.right_arc_min
+
+
+            print('left arc min = ', self.left_arc_min)
+
 
             ## Publish a velocity command to make the robot
             ## start moving [DONE]
@@ -116,12 +123,42 @@ class SearchActionServer():
                 pow(self.posx0 - self.tb3_odom.posx, 2) + pow(self.posy0 - self.tb3_odom.posy, 2)
             )
 
-            if self.right_closest_object < 0.5:
-                rospy.loginfo("Obstacle detected on right side! Rotating left to avoid.")
-                self.vel_controller.set_move_cmd(0.0, 1)
-            elif self.left_closest_object < 0.5:
-                rospy.loginfo("Obstacle detected on left side! Rotating right to avoid.")
+
+            if self.closest_object < 0.5:
+                rospy.loginfo("Obstacle detected! Rotating right to avoid.")
                 self.vel_controller.set_move_cmd(0.0, -1)
+                # self.vel_controller.publish()
+                # while self.closest_object < 0.5:
+                #     self.closest_object = self.tb3_lidar.min_distance
+                #     if self.actionserver.is_preempt_requested():
+                #         ## Take appropriate action if the action is
+                #         ## cancelled (pre-empted) [DONE]
+                #         print("Pre-empt requested!")
+                #         self.actionserver.set_preempted(self.result)
+                #         self.vel_controller.stop()
+                #         success = False
+                #         # exit the loop:
+                #         break
+                
+                # while self.left_wall
+                # self.vel_controller.set_move_cmd(goal.fwd_velocity, 0.0)
+                # self.vel_controller.publish()
+
+                # rospy.sleep(1.571)           
+                # self.vel_controller.set_move_cmd(0.0, 0)
+                # self.vel_controller.publish()    
+            # if self.right_closest_object < 0.5:
+            #     rospy.loginfo("Obstacle detected on right side! Rotating left to avoid.")
+            #     self.vel_controller.set_move_cmd(0.0, 1)
+            # elif self.left_closest_object < 0.5:
+            #     rospy.loginfo("Obstacle detected on left side! Rotating right to avoid.")
+            #     self.vel_controller.set_move_cmd(0.0, -1)
+            elif self.left_arc_min < 0.3:
+                print('turning right from small arc')
+                self.vel_controller.set_move_cmd(0.0, -0.5)
+            elif self.right_arc_min < 0.3:
+                print('turning left from small arc')
+                self.vel_controller.set_move_cmd(0, 0.5)
             else:
                 self.vel_controller.set_move_cmd(goal.fwd_velocity, 0.0)
 
