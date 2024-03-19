@@ -32,8 +32,7 @@ class Tb3Odometry(object):
         (_, _, yaw) = euler_from_quaternion([orientation.x,
             orientation.y, orientation.z, orientation.w],'sxyz')
         
-        # self.yaw = self.round(degrees(yaw), 4)
-        self.yaw = self.round((yaw), 4)
+        self.yaw = self.round(degrees(yaw), 4)
         self.posx = self.round(position.x, 4)
         self.posy = self.round(position.y, 4)
     
@@ -49,27 +48,15 @@ class Tb3Odometry(object):
 
 class Tb3LaserScan(object):
     def laserscan_cb(self, scan_data):
-        front_left_arc = scan_data.ranges[0:21]
-        front_right_arc = scan_data.ranges[-20:]
-        front_arc = np.array(front_left_arc[::-1] + front_right_arc[::-1])
-
-        left_arc = scan_data.ranges[21:70]
-        right_arc = scan_data.ranges[290:340]
+        left_arc = scan_data.ranges[0:21]
+        right_arc = scan_data.ranges[-20:]
+        front_arc = np.array(left_arc[::-1] + right_arc[::-1])
         
-        self.left_wall = np.array(scan_data.ranges[85:95]).min()
-
-        # self.back_left_wall = np.array(scan_data.ranges[90:100]).min()
-
-        # self.front_left_wall = np.array(scan_data.ranges[80:90]).min()
-        
-        self.left_arc_min = np.array(left_arc).min()
-        self.right_arc_min = np.array(right_arc).min()
-
-        self.front_min_distance = front_arc.min()
+        self.min_distance = front_arc.min()
         arc_angles = np.arange(-20, 21)
         self.closest_object_position = arc_angles[np.argmin(front_arc)]
 
     def __init__(self):
-        self.front_min_distance = 0.0
+        self.min_distance = 0.0
         self.closest_object_position = 0.0 # degrees
         self.subscriber = rospy.Subscriber('/scan', LaserScan, self.laserscan_cb) 
